@@ -24,24 +24,20 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define LINE_FEED		10		// Line feed
-#define CARR_RETURN		13	
-#define SPACE   		32		// Space
 #define CHAR_NUL		0		// Null character
 
 #define TRUE			1
 #define FALSE   		0	
 
-#define MAXBUF 			1024
-#define MAXLINE			256		// The maximum length of one command	
-#define MAXCOMMANDS 	100     // Maximum commands in one line
+#define MAXLINE			1024		// The maximum length of one command
+#define MAX_ARGS		1024	
 
-#define PROMPT 			"%%>"
-#define COMMAND_CAT		"cat"	
-#define COMMAND_ECHO	"echo"  
-#define COMMAND_FIND	"find"  
-#define PATH 			"/bin/"
+#define PROMPT 			"%%"
+
 
 /* ############################################################################
  * Prototypes
@@ -52,19 +48,20 @@
 int main (void) 
 {
 
-	char	buf[MAXBUF];
+	char	buf[MAXLINE];
 	ssize_t ret;
 	pid_t	pid;
-	char *argv[20];              //user command
-    char progpath[MAXLINE];      //full file path
-    int argc;
+	char *argv[MAX_ARGS];              //user command
+    int   argc;
     char *token;
-	//int		status;
+	int   status;
 	//int 	i;
+	
+	fprintf(stderr, PROMPT);
 	
   	/* Read commands from standard input */
 	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
-
+		
 		/* terminate the string by 0*/
 		if (buf[ret - 1] == LINE_FEED)
 			buf[ret - 1] = CHAR_NUL;
@@ -91,12 +88,14 @@ int main (void)
 					argc++;
 				}
 				argv[argc] = NULL;
-				/* build command path */
-				strcpy(progpath, PATH);      
-				strcat(progpath, argv[0]);
+				
 				/* execute command */  
-				execvp(progpath,argv);
+				execvp(argv[0],argv);
 			    exit(EXIT_SUCCESS);
+			    
+			default:
+				waitpid(pid, &status, WEXITED);
+				fprintf(stderr, PROMPT);
 			}
 	}	
   	fprintf (stdout, "Bye!\n");
