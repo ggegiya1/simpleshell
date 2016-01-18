@@ -33,74 +33,72 @@
 #define TRUE			1
 #define FALSE   		0	
 
-#define MAXLINE			256		// The maximum length of commands	
+#define MAXBUF 			1024
+#define MAXLINE			256		// The maximum length of one command	
+#define MAXCOMMANDS 	100     // Maximum commands in one line
 
+#define PROMPT 			"%%>"
 #define COMMAND_CAT		"cat"	
 #define COMMAND_ECHO	"echo"  
 #define COMMAND_FIND	"find"  
+#define PATH 			"/bin/"
 
 /* ############################################################################
  * Prototypes
  * ############################################################################
  */
 
-int validate_command(char *input);
-
-/* 
- * Test whether the input command are valid.
- * if so, return the number of command.
- * if not, return 0 after printing an error message. 
- */
-
-int validate_command(char *input)
-{
-//	char *command = strtok(input, SPACE);
-
-//	printf("Command : %s\n", command);
-
-	return FALSE;
-}
 
 int main (void) 
 {
 
-	char	command[MAXLINE];
+	char	buf[MAXBUF];
+	ssize_t ret;
 	pid_t	pid;
-	int		status;
-	int 	i;
-
-	/* Print promt */
-
-	fprintf (stdout, "%% ");
-
+	char *argv[20];              //user command
+    char progpath[MAXLINE];      //full file path
+    int argc;
+    char *token;
+	//int		status;
+	//int 	i;
+	
   	/* Read commands from standard input */
+	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
 
-	while (fgets (command, MAXLINE, stdin) != NULL) {
-
-		if (command[strlen(command) - 1] == LINE_FEED)
-			command[strlen(command) - 1] = CHAR_NUL;
-
-		if ((pid = fork()) < 0) {
+		/* terminate the string by 0*/
+		if (buf[ret - 1] == LINE_FEED)
+			buf[ret - 1] = CHAR_NUL;
 			
-			printf("error: fork error...");
-
-		} else if (pid == 0) {
-
-//			printf("number of command: %d\n", validate_command(command));
-
-			execlp(command, command, (char *)0);
-			printf("error: couldn't execute: %s", command);
-			exit(127);
-
-		} else {
+		/* fork to execute the command */
+		switch (pid=fork()){
 			
-			if ((pid = waitpid(pid, &status, 0)) < 0)
-				printf("error: waitpid error...");
-		}
-
-		
+			case -1:
+				perror("fork");
+				exit(EXIT_FAILURE);
+			
+			case 0:		
+				/*  this is a child code 
+				 *	will execute command here
+				 */ 
+				
+				/* get the first token */
+				token = strtok(buf, " ");
+				argc = 0;
+				while(token != NULL)
+				{	
+					argv[argc] = token;
+					token = strtok(NULL, " ");
+					argc++;
+				}
+				argv[argc] = NULL;
+				/* build command path */
+				strcpy(progpath, PATH);      
+				strcat(progpath, argv[0]);
+				/* execute command */  
+				execvp(progpath,argv);
+			    exit(EXIT_SUCCESS);
+			}
 	}	
-
   	fprintf (stdout, "Bye!\n");
-  	exit (0);
+  	return 0;
 }
