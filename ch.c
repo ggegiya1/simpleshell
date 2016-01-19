@@ -33,7 +33,8 @@
 #define TRUE			1
 #define FALSE   		0	
 
-#define MAXLINE			256		// The maximum length of commands	
+#define MAXLINE			2048	// Length of command	
+#define MAX_OPT			16		// Options of command
 
 #define COMMAND_CAT		"cat"	
 #define COMMAND_ECHO	"echo"  
@@ -65,9 +66,13 @@ int main (void)
 {
 
 	char	command[MAXLINE];
-	pid_t	pid;
+	char	*program;
+	char	options[MAX_OPT];
+	
+	int		argc		= 0;
 	int		status;
-	int 	i;
+
+	pid_t	pid;
 
 	/* Print promt */
 
@@ -77,27 +82,33 @@ int main (void)
 
 	while (fgets (command, MAXLINE, stdin) != NULL) {
 
-		if (command[strlen(command) - 1] == LINE_FEED)
+		if (command[strlen(command) - 1] == LINE_FEED) 
 			command[strlen(command) - 1] = CHAR_NUL;
 
-		if ((pid = fork()) < 0) {
+		if ((program = strtok(command, " ")) != NULL) {
 			
-			printf("error: fork error...");
+			if (strcmp(program, COMMAND_CAT) == 0) {
+				
+				options[0] = strtok(command, " ");
 
-		} else if (pid == 0) {
+			}
 
-//			printf("number of command: %d\n", validate_command(command));
-
-			execlp(command, command, (char *)0);
-			printf("error: couldn't execute: %s", command);
-			exit(127);
-
-		} else {
+			if ((pid = fork()) < 0) {
 			
-			if ((pid = waitpid(pid, &status, 0)) < 0)
-				printf("error: waitpid error...");
+				printf("error: fork error...");
+
+			} else if (pid == 0) {
+
+				execlp(program, options, (char *)0);
+				printf("error: couldn't execute: %s", program);
+				exit(127);
+
+			} else {
+			
+				if ((pid = waitpid(pid, &status, 0)) < 0)
+					printf("error: waitpid error...");
+			}
 		}
-
 		
 	}	
 
