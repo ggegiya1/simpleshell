@@ -24,47 +24,36 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define LINE_FEED		10		// Line feed
-#define CARR_RETURN		13	
-#define SPACE   		32		// Space
 #define CHAR_NUL		0		// Null character
 
 #define TRUE			1
 #define FALSE   		0	
 
+<<<<<<< HEAD
 #define MAXLINE			2048	// Length of command	
 #define MAX_OPT			16		// Options of command
+=======
+#define MAXLINE			1024		// The maximum length of one command
+#define MAX_ARGS		1024	
 
-#define COMMAND_CAT		"cat"	
-#define COMMAND_ECHO	"echo"  
-#define COMMAND_FIND	"find"  
+#define PROMPT 			"%%"
+>>>>>>> f0e769d957f934a42fc97f2e2176ceea4f88be7e
+
 
 /* ############################################################################
  * Prototypes
  * ############################################################################
  */
 
-int validate_command(char *input);
-
-/* 
- * Test whether the input command are valid.
- * if so, return the number of command.
- * if not, return 0 after printing an error message. 
- */
-
-int validate_command(char *input)
-{
-//	char *command = strtok(input, SPACE);
-
-//	printf("Command : %s\n", command);
-
-	return FALSE;
-}
 
 int main (void) 
 {
 
+<<<<<<< HEAD
 	char	command[MAXLINE];
 	char	*program;
 	char	options[MAX_OPT];
@@ -110,8 +99,58 @@ int main (void)
 			}
 		}
 		
+=======
+	char	buf[MAXLINE];
+	ssize_t ret;
+	pid_t	pid;
+	char *argv[MAX_ARGS];              //user command
+    int   argc;
+    char *token;
+	int   status;
+	//int 	i;
+	
+	fprintf(stderr, PROMPT);
+	
+  	/* Read commands from standard input */
+	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
+		
+		/* terminate the string by 0*/
+		if (buf[ret - 1] == LINE_FEED)
+			buf[ret - 1] = CHAR_NUL;
+			
+		/* fork to execute the command */
+		switch (pid=fork()){
+			
+			case -1:
+				perror("fork");
+				exit(EXIT_FAILURE);
+			
+			case 0:		
+				/*  this is a child code 
+				 *	will execute command here
+				 */ 
+				
+				/* get the first token */
+				token = strtok(buf, " ");
+				argc = 0;
+				while(token != NULL)
+				{	
+					argv[argc] = token;
+					token = strtok(NULL, " ");
+					argc++;
+				}
+				argv[argc] = NULL;
+				
+				/* execute command */  
+				execvp(argv[0],argv);
+			    exit(EXIT_SUCCESS);
+			    
+			default:
+				waitpid(pid, &status, WEXITED);
+				fprintf(stderr, PROMPT);
+			}
+>>>>>>> f0e769d957f934a42fc97f2e2176ceea4f88be7e
 	}	
-
   	fprintf (stdout, "Bye!\n");
-  	exit (0);
+  	return 0;
 }
