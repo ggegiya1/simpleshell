@@ -104,7 +104,7 @@ int main (void)
     int saved_stdout;
 
 	fprintf(stdout, PROMPT);
-	
+	fflush(stdout);
   	/* Read commands from standard input */
 	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
 		
