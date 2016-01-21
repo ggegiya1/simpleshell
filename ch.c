@@ -57,7 +57,7 @@ int main (void)
 	int   status;
 	//int 	i;
 	
-	fprintf(stderr, PROMPT);
+	fprintf(stdout, PROMPT);
 	
   	/* Read commands from standard input */
 	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
@@ -91,11 +91,11 @@ int main (void)
 				
 				/* execute command */  
 				execvp(argv[0],argv);
-			    exit(EXIT_SUCCESS);
 			    
 			default:
 				waitpid(pid, &status, WEXITED);
-				fprintf(stderr, PROMPT);
+				fprintf(stdout, PROMPT);
+				fflush(stdout);
 			}
 	}	
   	fprintf (stdout, "Bye!\n");
