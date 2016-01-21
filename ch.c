@@ -26,6 +26,10 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <ctype.h>
+
 
 #define LINE_FEED		10		// Line feed
 #define CHAR_NUL		0		// Null character
@@ -44,19 +48,61 @@
  * ############################################################################
  */
 
+char * trim(char * s) 
+{
+    int l = strlen(s);
+
+    while(isspace(s[l - 1])) --l;
+    while(* s && isspace(* s)) ++s, --l;
+
+    return strndup(s, l);
+}
+
+int execute_command(char *command)
+{
+	char *argv[MAX_ARGS];              //user command
+    int   argc;
+    char *token;
+	int   status;
+	pid_t	pid;
+
+	/* get the first token */
+	token = strtok(command, " ");
+	argc = 0;
+	while(token != NULL)
+	{	
+		argv[argc] = trim(token);
+		token = strtok(NULL, " ");
+		argc++;
+	}
+	argv[argc] = NULL;
+
+	/* fork to execute the command */
+	switch (pid=fork()){
+		case -1:
+			perror("Cannot fork");
+			return EXIT_FAILURE;
+		case 0:		
+			/*  this is a child code 
+			 *	will execute command here
+			 */ 			
+			execvp(argv[0],argv);
+		}
+	waitpid(pid, &status, 0);		
+	return status;
+}
 
 int main (void) 
 {
 
 	char	buf[MAXLINE];
 	ssize_t ret;
-	pid_t	pid;
-	char *argv[MAX_ARGS];              //user command
+	int out_fd;
+	char *argv[MAX_ARGS];
     int   argc;
     char *token;
-	int   status;
-	//int 	i;
-	
+    int saved_stdout;
+
 	fprintf(stdout, PROMPT);
 	
   	/* Read commands from standard input */
@@ -65,38 +111,41 @@ int main (void)
 		/* terminate the string by 0*/
 		if (buf[ret - 1] == LINE_FEED)
 			buf[ret - 1] = CHAR_NUL;
-			
-		/* fork to execute the command */
-		switch (pid=fork()){
-			
-			case -1:
-				perror("fork");
-				exit(EXIT_FAILURE);
-			
-			case 0:		
-				/*  this is a child code 
-				 *	will execute command here
-				 */ 
-				
-				/* get the first token */
-				token = strtok(buf, " ");
-				argc = 0;
-				while(token != NULL)
-				{	
-					argv[argc] = token;
-					token = strtok(NULL, " ");
-					argc++;
-				}
-				argv[argc] = NULL;
-				
-				/* execute command */  
-				execvp(argv[0],argv);
-			    
-			default:
-				waitpid(pid, &status, WEXITED);
-				fprintf(stdout, PROMPT);
-				fflush(stdout);
+
+  		if (strchr(buf, '>') != NULL){
+  			// redirect output 
+			token = strtok(buf, ">");
+			argc = 0;
+			while(token != NULL){	
+				argv[argc] = trim(token);
+				token = strtok(NULL, ">");
+				argc++;
 			}
+			if (argc != 2){
+				perror("Invalid command");
+				continue;
+			}
+
+			out_fd = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
+			if (out_fd == -1){		
+				perror("Cannot open the file for writing");
+				continue;
+			}
+			saved_stdout = dup(STDOUT_FILENO);
+			dup2(out_fd, STDOUT_FILENO);
+			close(out_fd);
+			execute_command(argv[0]);
+			dup2(saved_stdout, STDOUT_FILENO);
+			close(saved_stdout);
+
+  		}else{
+  			// execute normal command
+  			execute_command(buf);
+  		}
+  
+  			
+		fprintf(stdout, PROMPT);
+		fflush(stdout);
 	}	
   	fprintf (stdout, "Bye!\n");
   	return 0;
