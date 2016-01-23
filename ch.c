@@ -65,7 +65,7 @@ int execute_command(char *command)
     char *token;
 	int   status;
 	pid_t	pid;
-
+	
 	/* get the first token */
 	token = strtok(command, " ");
 	argc = 0;
@@ -86,7 +86,10 @@ int execute_command(char *command)
 			/*  this is a child code 
 			 *	will execute command here
 			 */ 			
-			execvp(argv[0],argv);
+			if (execvp(argv[0],argv)<0){
+				perror("Invalid command");
+				return -1;
+				}
 		}
 	waitpid(pid, &status, 0);		
 	return status;
