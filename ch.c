@@ -97,11 +97,9 @@ int main (void)
 
 	char	buf[MAXLINE];
 	ssize_t ret;
-	int out_fd;
 	char *argv[MAX_ARGS];
     int   argc;
     char *token;
-    int saved_stdout;
 
 	fprintf(stdout, PROMPT);
 	fflush(stdout);
@@ -126,18 +124,44 @@ int main (void)
 				continue;
 			}
 
-			out_fd = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
+			int out_fd = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
 			if (out_fd == -1){		
 				perror("Cannot open the file for writing");
 				continue;
 			}
-			saved_stdout = dup(STDOUT_FILENO);
+			int saved_stdout = dup(STDOUT_FILENO);
 			dup2(out_fd, STDOUT_FILENO);
 			close(out_fd);
 			execute_command(argv[0]);
 			dup2(saved_stdout, STDOUT_FILENO);
 			close(saved_stdout);
+			
+		}else if (strchr(buf, '<') != NULL){
+  			// redirect input 
+			token = strtok(buf, "<");
+			argc = 0;
+			while(token != NULL){	
+				argv[argc] = trim(token);
+				token = strtok(NULL, "<");
+				argc++;
+			}
+			if (argc != 2){
+				perror("Invalid command");
+				continue;
+			}
 
+			int in_fd = open(argv[1], O_RDONLY);
+			if (in_fd == -1){		
+				perror("Cannot open the file for reading");
+				continue;
+			}
+			int saved_stdin = dup(STDIN_FILENO);
+			dup2(in_fd, STDIN_FILENO);
+			close(in_fd);
+			execute_command(argv[0]);
+			dup2(saved_stdin, STDIN_FILENO);
+			close(saved_stdin);
+			
   		}else{
   			// execute normal command
   			execute_command(buf);
