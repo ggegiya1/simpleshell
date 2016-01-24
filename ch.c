@@ -190,25 +190,66 @@ int main (void)
 
 	char	buf[MAXLINE];
 	ssize_t ret;
-	struct Command *cmd;
+	struct  Command * cmd[128];
+	int     count;
 	
+	int _pipe[2];
+	int input;
+	int status;
 	
 	fprintf(stdout, PROMPT);
 	fflush(stdout);
   	/* Read commands from standard input */
 	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
+		status = EXIT_SUCCESS;
 		
 		/* terminate the string by 0*/
 		if (buf[ret - 1] == LINE_FEED)
 			buf[ret - 1] = CHAR_NUL;
 
-		// execute normal command
-		cmd = parse_command(buf);
-		if (cmd==NULL){
-			perror("Unable to parse the command");
-			continue;
+		if (strchr(buf, '|') != NULL){
+			char * token = strtok(buf, "|");
+			input = STDIN_FILENO;
+			count = 0;
+			while(token != NULL){
+				struct Command * one_command = parse_command (token);
+				if (one_command==NULL || one_command->status==EXIT_FAILURE){
+					perror("Unable to parse the command");
+					status = EXIT_FAILURE;
+					break;
+				}
+				cmd[count++] = one_command;
+				token = strtok(NULL, "|");
+			}
+			
+			if (status == EXIT_SUCCESS){
+				int i;
+				for (i=0; i<count-1; i++){
+					fprintf (stderr, "executing: %s\n", cmd[i]->command);			
+					pipe(_pipe);
+					cmd[i]->input = input;
+					cmd[i]->output = _pipe[1];
+					fprintf (stderr, "input: %d\n", cmd[i]->input);
+					fprintf (stderr, "output: %d\n", cmd[i]->output);
+					execute_command (cmd[i]);
+				
+					close(_pipe[1]);
+					input = _pipe[0];
+				}
+				cmd[i]->input = input;
+				execute_command (cmd[i]);
+			}
+		}else{
+			// execute onr command
+			struct Command * one_command = parse_command(buf);
+			if (one_command == NULL || one_command->status == EXIT_FAILURE){
+				perror("Unable to parse the command");
+				continue;
+			}
+			execute_command(one_command);
 		}
-		execute_command(cmd);
+		
+		
 		fprintf(stdout, PROMPT);
 		fflush(stdout);
 			
