@@ -58,19 +58,19 @@ char * trim(char * s)
     return strndup(s, l);
 }
 
-int execute_command(char *command)
+int execute_command(char *command, int input, int output)
 {
 	char *argv[MAX_ARGS];              //user command
-    int   argc;
+    int  argc;
     char *token;
-	int   status;
-	pid_t	pid;
+	int	status;
+	pid_t	pid, wpid;
 	
-	/* get the first token */
+	/* tokenize and put to array argv[]
+	 * argv[0] will contain the command name */
 	token = strtok(command, " ");
 	argc = 0;
-	while(token != NULL)
-	{	
+	while(token != NULL){	
 		argv[argc] = trim(token);
 		token = strtok(NULL, " ");
 		argc++;
@@ -78,20 +78,37 @@ int execute_command(char *command)
 	argv[argc] = NULL;
 
 	/* fork to execute the command */
-	switch (pid=fork()){
+	switch (pid = fork()){
 		case -1:
 			perror("Cannot fork");
 			return EXIT_FAILURE;
-		case 0:		
+		case 0:
 			/*  this is a child code 
 			 *	will execute command here
-			 */ 			
+			*/
+			
+			// redirect stdin and stdout
+			if (input != STDIN_FILENO){
+				dup2(input, STDIN_FILENO);
+				close(input);
+			}
+			
+			if (output != STDOUT_FILENO){
+				dup2(output, STDOUT_FILENO);
+				close(output);
+			}
+			
+			// execute the command and handle the errors  			
 			if (execvp(argv[0],argv)<0){
 				perror("Invalid command");
-				return -1;
-				}
-		}
-	waitpid(pid, &status, 0);		
+				return EXIT_FAILURE;
+			}
+	}
+	// wait until the child process terminates	
+	do {
+		wpid = waitpid(pid, &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    
 	return status;
 }
 
@@ -101,7 +118,7 @@ int main (void)
 	char	buf[MAXLINE];
 	ssize_t ret;
 	char *argv[MAX_ARGS];
-    int   argc;
+    int  argc;
     char *token;
 
 	fprintf(stdout, PROMPT);
@@ -114,9 +131,10 @@ int main (void)
 			buf[ret - 1] = CHAR_NUL;
 
   		if (strchr(buf, '>') != NULL){
-  			// redirect output 
+  			// redirect output
 			token = strtok(buf, ">");
 			argc = 0;
+			
 			while(token != NULL){	
 				argv[argc] = trim(token);
 				token = strtok(NULL, ">");
@@ -127,22 +145,18 @@ int main (void)
 				continue;
 			}
 
-			int out_fd = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
-			if (out_fd == -1){		
+			int output = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
+			if (output == -1){		
 				perror("Cannot open the file for writing");
 				continue;
 			}
-			int saved_stdout = dup(STDOUT_FILENO);
-			dup2(out_fd, STDOUT_FILENO);
-			close(out_fd);
-			execute_command(argv[0]);
-			dup2(saved_stdout, STDOUT_FILENO);
-			close(saved_stdout);
+			execute_command(argv[0], STDIN_FILENO, output);
 			
 		}else if (strchr(buf, '<') != NULL){
   			// redirect input 
 			token = strtok(buf, "<");
 			argc = 0;
+			
 			while(token != NULL){	
 				argv[argc] = trim(token);
 				token = strtok(NULL, "<");
@@ -153,21 +167,16 @@ int main (void)
 				continue;
 			}
 
-			int in_fd = open(argv[1], O_RDONLY);
-			if (in_fd == -1){		
+			int input = open(argv[1], O_RDONLY);
+			if (input == -1){		
 				perror("Cannot open the file for reading");
 				continue;
 			}
-			int saved_stdin = dup(STDIN_FILENO);
-			dup2(in_fd, STDIN_FILENO);
-			close(in_fd);
-			execute_command(argv[0]);
-			dup2(saved_stdin, STDIN_FILENO);
-			close(saved_stdin);
+			execute_command(argv[0], input, STDOUT_FILENO);
 			
   		}else{
   			// execute normal command
-  			execute_command(buf);
+  			execute_command(buf, STDIN_FILENO, STDOUT_FILENO);
   		}
   
   			
