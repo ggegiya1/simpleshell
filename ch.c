@@ -34,20 +34,12 @@
 #define LINE_FEED		10		// Line feed
 #define CHAR_NUL		0		// Null character
 
-#define TRUE			1
-#define FALSE   		0	
-
 #define MAXLINE			1024		// The maximum length of one command
 #define MAX_ARGS		1024	
 
 #define PROMPT 			"%%"
 
-
-/* ############################################################################
- * Prototypes
- * ############################################################################
- */
- 
+/* structure to handle one command */ 
 struct Command{
 	char * command;
 	int input;
@@ -55,6 +47,7 @@ struct Command{
 	int status;
 };
 
+/* trim extra spaces at the beginning and at the end of command */
 char * trim(char * s) 
 {
     int l = strlen(s);
@@ -65,6 +58,7 @@ char * trim(char * s)
     return strndup(s, l);
 }
 
+/* spawn one command */
 int execute_command(struct Command * cmd)
 {
 	char *argv[MAX_ARGS];
@@ -84,17 +78,15 @@ int execute_command(struct Command * cmd)
 	}
 	argv[argc] = NULL;
 
-	/* fork to execute the command */
+	/* fork the porcess to execute the command */
 	switch (pid = fork()){
 		case -1:
 			perror("Cannot fork");
 			return EXIT_FAILURE;
 		case 0:
-			/*  this is a child code 
-			 *	will execute command here
-			*/
-			
-			// redirect stdin and stdout
+			/*  this is a child code */ 
+	
+			/* redirect stdin and stdout */
 			if (cmd->input != STDIN_FILENO){
 				dup2(cmd->input, STDIN_FILENO);
 				close(cmd->input);
@@ -105,13 +97,14 @@ int execute_command(struct Command * cmd)
 				close(cmd->output);
 			}
 			
-			// execute the command and handle the errors  			
+			/* execute the command and handle the errors */  			
 			if (execvp(argv[0],argv)<0){
 				perror("Invalid command");
 				return EXIT_FAILURE;
 			}
 	}
-	// wait until the child process terminates	
+	
+	/* wait until the child process terminates */	
 	do {
 		waitpid(pid, &status, WUNTRACED);
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
@@ -137,7 +130,7 @@ struct Command * parse_command(char * command){
     cmd->output = EXIT_FAILURE;
     
 	if (strchr(cmd->command, '>') != NULL){
-  		// redirect output
+  		/* redirect output to file */
 		token = strtok(cmd->command, ">");
 		argc = 0;
 			
@@ -160,7 +153,7 @@ struct Command * parse_command(char * command){
 	}
 						
 	if (strchr(cmd->command, '<') != NULL){
-  		// redirect input 
+  		/* read the input from file */ 
 		token = strtok(cmd->command, "<");
 		argc = 0;
 			
@@ -207,7 +200,10 @@ int main (void)
 		if (buf[ret - 1] == LINE_FEED)
 			buf[ret - 1] = CHAR_NUL;
 
+		/* allow using pipes */
 		if (strchr(buf, '|') != NULL){
+
+			/* parse commamnds and store in cmd[] array */
 			char * token = strtok(buf, "|");
 			input = STDIN_FILENO;
 			count = 0;
@@ -225,19 +221,24 @@ int main (void)
 			if (status == EXIT_SUCCESS){
 				int i;
 				for (i=0; i<count-1; i++){
-					fprintf (stderr, "executing: %s\n", cmd[i]->command);			
+					
+					// create pipe
 					pipe(_pipe);
+					
+					/* connect input and output to the pipe */  
 					cmd[i]->input = input;
 					cmd[i]->output = _pipe[1];
-					fprintf (stderr, "input: %d\n", cmd[i]->input);
-					fprintf (stderr, "output: %d\n", cmd[i]->output);
+
 					execute_command (cmd[i]);
-				
+
+					/* close output , but keep input for the next command */
 					close(_pipe[1]);
 					input = _pipe[0];
 				}
+				/* last command reads from pipe but writes to STDOUT */
 				cmd[i]->input = input;
 				execute_command (cmd[i]);
+				close(_pipe[0]);
 			}
 		}else{
 			// execute onr command
