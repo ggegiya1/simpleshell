@@ -29,14 +29,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
-
+#include <dirent.h>
 
 #define LINE_FEED		10		// Line feed
 #define CHAR_NUL		0		// Null character
 
-#define MAXLINE			1024		// The maximum length of one command
-#define MAX_ARGS		1024	
-
+#define MAXLINE			4096		// The maximum length of a command
+#define MAXDIRSIZE		4096		// Maximum of the files in the directory
+#define CURRENT_DIR		"."
 #define PROMPT 			"%%"
 
 /* structure to handle one command */ 
@@ -58,26 +58,54 @@ char * trim(char * s)
     return strndup(s, l);
 }
 
+void read_directory(char * path, char ** files){
+	
+	DIR *dpath = NULL;
+	struct dirent *direntry = NULL;
+	
+	if ((dpath = opendir(path))==NULL){
+		perror("Failed to open the directory");
+	}
+	int i;
+	for(i=0;(direntry = readdir(dpath)) != NULL;i++){
+		files[i] = direntry->d_name;
+	}
+	files[i] = NULL;
+}
+
 /* spawn one command */
 int execute_command(struct Command * cmd)
 {
-	char *argv[MAX_ARGS];
-    int  argc;
-    char *token;
+	char	**argv;
+    	int	argc;
+    	char	*token;
 	int	status;
-	pid_t pid;
-	
+	pid_t	pid;
+	char    *files[MAXDIRSIZE];
+
 	/* tokenize and put to array argv[]
 	 * argv[0] will contain the command name */
+	argv = (char**) malloc(sizeof(char*));
 	token = strtok(cmd->command, " ");
 	argc = 0;
-	while(token != NULL){	
+	while(token != NULL){
 		argv[argc] = trim(token);
+		/* replace the "*' by the list of the files in the current directory */
+		if (strcmp("*", argv[argc]) == 0){
+			read_directory(CURRENT_DIR, files);
+			int i;
+			for(i=0;files[i]!=NULL;i++){
+				argv[argc] = files[i];
+				argc++;
+				argv = realloc(argv, sizeof(char*)*(argc+1));
+			}
+		}
+		
 		token = strtok(NULL, " ");
 		argc++;
+		argv = (char**)realloc(argv, sizeof(char*)*(argc+1));
 	}
 	argv[argc] = NULL;
-
 	/* fork the porcess to execute the command */
 	switch (pid = fork()){
 		case -1:
@@ -108,7 +136,7 @@ int execute_command(struct Command * cmd)
 	do {
 		waitpid(pid, &status, WUNTRACED);
 	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-
+	free(argv);
 	return EXIT_SUCCESS;
 }
 
@@ -258,7 +286,7 @@ int main (void)
 		fflush(stdout);
 			
 	}	
-  	fprintf (stdout, "Bye!\n");
 	fflush(stdout);
+  	fprintf (stdout, "Bye!\n");
   	return 0;
 }
