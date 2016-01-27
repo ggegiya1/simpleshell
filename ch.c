@@ -109,7 +109,7 @@ int execute_command(struct Command * cmd)
 		waitpid(pid, &status, WUNTRACED);
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     
-	return status;
+	return EXIT_SUCCESS;
 }
 
 struct Command * parse_command(char * command){
@@ -118,7 +118,8 @@ struct Command * parse_command(char * command){
 	int argc;
 	char * argv[2];
 	struct Command * cmd;
-    
+
+	/* don't forget to free the memory after the execution */
     if((cmd = malloc(sizeof(struct Command))) == NULL){
 		perror("Memory allocation error");
 		return cmd;
@@ -220,9 +221,10 @@ int main (void)
 			
 			if (status == EXIT_SUCCESS){
 				int i;
+				/* execute commands secuentially */
 				for (i=0; i<count-1; i++){
 					
-					// create pipe
+					/* create pipe */
 					pipe(_pipe);
 					
 					/* connect input and output to the pipe */  
@@ -230,31 +232,33 @@ int main (void)
 					cmd[i]->output = _pipe[1];
 
 					execute_command (cmd[i]);
-
 					/* close output , but keep input for the next command */
 					close(_pipe[1]);
 					input = _pipe[0];
+					free(cmd[i]);
 				}
 				/* last command reads from pipe but writes to STDOUT */
 				cmd[i]->input = input;
 				execute_command (cmd[i]);
 				close(_pipe[0]);
+				free(cmd[i]);
 			}
 		}else{
-			// execute onr command
+			/* execute one command */
 			struct Command * one_command = parse_command(buf);
 			if (one_command == NULL || one_command->status == EXIT_FAILURE){
 				perror("Unable to parse the command");
 				continue;
 			}
 			execute_command(one_command);
+			free(one_command);
 		}
-		
 		
 		fprintf(stdout, PROMPT);
 		fflush(stdout);
 			
 	}	
   	fprintf (stdout, "Bye!\n");
+	fflush(stdout);
   	return 0;
 }
