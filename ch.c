@@ -107,8 +107,8 @@ int execute_command(struct Command * cmd)
 	/* wait until the child process terminates */	
 	do {
 		waitpid(pid, &status, WUNTRACED);
-    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-    
+	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
 	return EXIT_SUCCESS;
 }
 
