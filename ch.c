@@ -35,7 +35,9 @@
 #define CHAR_NUL		0		// Null character
 
 #define MAXLINE			4096		// The maximum length of a command
-#define MAXDIRSIZE		4096		// Maximum of the files in the directory
+#define MAXARGS			4096		// Maximal number of arguments
+#define MAXCMDS			128		// Maximal number of commands in the line
+
 #define CURRENT_DIR		"."
 #define PROMPT 			"%%"
 
@@ -51,10 +53,8 @@ struct Command{
 char * trim(char * s) 
 {
     int l = strlen(s);
-
     while(isspace(s[l - 1])) --l;
     while(* s && isspace(* s)) ++s, --l;
-
     return strndup(s, l);
 }
 
@@ -76,36 +76,44 @@ void read_directory(char * path, char ** files){
 /* spawn one command */
 int execute_command(struct Command * cmd)
 {
-	char	**argv;
+	char	*argv[MAXARGS];;
     	int	argc;
     	char	*token;
 	int	status;
 	pid_t	pid;
-	char    *files[MAXDIRSIZE];
+	char    *files[MAXARGS];
 
 	/* tokenize and put to array argv[]
 	 * argv[0] will contain the command name */
-	argv = (char**) malloc(sizeof(char*));
 	token = strtok(cmd->command, " ");
 	argc = 0;
 	while(token != NULL){
-		argv[argc] = trim(token);
+		char * argument = trim(token);
 		/* replace the "*' by the list of the files in the current directory */
-		if (strcmp("*", argv[argc]) == 0){
+		if (strcmp("*", argument) == 0){
 			read_directory(CURRENT_DIR, files);
 			int i;
 			for(i=0;files[i]!=NULL;i++){
 				argv[argc] = files[i];
 				argc++;
-				argv = realloc(argv, sizeof(char*)*(argc+1));
+				if (argc == MAXARGS){
+					perror("Too many files");
+					return EXIT_FAILURE;
+				}
+			}
+		}else{
+			argv[argc] = argument;
+			argc++;
+			if (argc == MAXARGS){
+				perror("Too many arguments");
+				return EXIT_FAILURE;
 			}
 		}
-		
 		token = strtok(NULL, " ");
-		argc++;
-		argv = (char**)realloc(argv, sizeof(char*)*(argc+1));
 	}
+	/* NULL is the special element, end of the list */
 	argv[argc] = NULL;
+
 	/* fork the porcess to execute the command */
 	switch (pid = fork()){
 		case -1:
@@ -114,18 +122,19 @@ int execute_command(struct Command * cmd)
 		case 0:
 			/*  this is a child code */ 
 	
-			/* redirect stdin and stdout */
+			/* redirect input to read from file */
 			if (cmd->input != STDIN_FILENO){
 				dup2(cmd->input, STDIN_FILENO);
 				close(cmd->input);
 			}
 			
+			/* redirect output to file */
 			if (cmd->output != STDOUT_FILENO){
 				dup2(cmd->output, STDOUT_FILENO);
 				close(cmd->output);
 			}
-			
-			/* execute the command and handle the errors */  			
+
+			/* execute the command and handle the errors */
 			if (execvp(argv[0],argv)<0){
 				perror("Invalid command");
 				return EXIT_FAILURE;
@@ -136,7 +145,6 @@ int execute_command(struct Command * cmd)
 	do {
 		waitpid(pid, &status, WUNTRACED);
 	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-	free(argv);
 	return EXIT_SUCCESS;
 }
 
@@ -147,22 +155,20 @@ struct Command * parse_command(char * command){
 	char * argv[2];
 	struct Command * cmd;
 
-	/* don't forget to free the memory after the execution */
-    if((cmd = malloc(sizeof(struct Command))) == NULL){
+    	if((cmd = malloc(sizeof(struct Command))) == NULL){
 		perror("Memory allocation error");
 		return cmd;
 	}
     
-    cmd->command = command;
-    cmd->input = STDIN_FILENO;
-    cmd->output = STDOUT_FILENO;
-    cmd->output = EXIT_FAILURE;
+	cmd->command = command;
+	cmd->input = STDIN_FILENO;
+	cmd->output = STDOUT_FILENO;
+	cmd->output = EXIT_FAILURE;
     
 	if (strchr(cmd->command, '>') != NULL){
   		/* redirect output to file */
 		token = strtok(cmd->command, ">");
-		argc = 0;
-			
+		argc = 0;		
 		while(token != NULL){
 			if (argc > 1){
 				perror("Invalid syntax");
@@ -212,7 +218,7 @@ int main (void)
 
 	char	buf[MAXLINE];
 	ssize_t ret;
-	struct  Command * cmd[128];
+	struct  Command * cmd[MAXCMDS];
 	int     count;
 	
 	int _pipe[2];
@@ -245,8 +251,14 @@ int main (void)
 				}
 				cmd[count++] = one_command;
 				token = strtok(NULL, "|");
+				if (count == MAXCMDS){
+					perror("Too many commands");
+					status = EXIT_FAILURE;
+					break;
+				}
 			}
 			
+			/* execute commands in chain if the command line was successfully parsed */
 			if (status == EXIT_SUCCESS){
 				int i;
 				/* execute commands secuentially */
@@ -258,7 +270,7 @@ int main (void)
 					/* connect input and output to the pipe */  
 					cmd[i]->input = input;
 					cmd[i]->output = _pipe[1];
-
+					
 					execute_command (cmd[i]);
 					/* close output , but keep input for the next command */
 					close(_pipe[1]);
