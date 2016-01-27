@@ -1,14 +1,96 @@
 \documentclass{article}
 
 \usepackage[utf8]{inputenc}
+\usepackage{amsfonts}            %For \leadsto
+\usepackage{amsmath}             %For \text
 
-\title{Travail pratique \#1 - IFT-2245}
-\author{Moi et L'autre}
+\title{Travail pratique \#1}
+\author{Georgiy Gegiya, Cordeleanu Corneliu}
 
 \begin{document}
 
 \maketitle
 
-%% ¡¡ REMPLIR ICI !!
+\newcommand \mML {\ensuremath\mu\textsl{ML}}
+\newcommand \kw [1] {\textsf{#1}}
+\newcommand \id [1] {\textsl{#1}}
+\newcommand \punc [1] {\kw{`#1'}}
+\newcommand \str [1] {\texttt{"#1"}}
+\newenvironment{outitemize}{
+  \begin{itemize}
+  \let \origitem \item \def \item {\origitem[]\hspace{-18pt}}
+}{
+  \end{itemize}
+}
+\newcommand \Align [2][t] {
+  \begin{array}[#1]{@{}l}
+    #2
+  \end{array}}
+
+\section{Introduction:}
+
+Le terme anglais \texttt{shell} vient à l'origine de la terminologie employée 
+avec les premiers systèmes d'exploitation de type Unix où il avait le sens plus 
+spécifique de shell Unix. Cette appellation est une métaphore pour désigner la couche
+la plus haute des interfaces des systèmes Unix, par opposition à la couche de bas-niveau,
+appelée noyau. La \texttt{coque} invoque l'association de l'écran et du clavier,
+utilisées par des émulateurs de consoles (les \texttt{coquilles} en analogie 
+au chemin complexe d'une architecture client-serveur): nouvelles interfaces systèmes
+de la micro-informatique. Avec l'arrivée de la souris et des interfaces graphiques, 
+cet anglicisme a fini par être démocratisé pour désigner tous les types d'interfaces
+de sortie vidéo d'un système d'exploitation, qu'elles soient textuelles ou graphiques. 
+\cite{Widipedia}.
+
+\begin{thebibliography}{2}
+
+\bibitem{Wikidpedia}
+  Wikipedia
+\bibitem{OtherItem}
+  Other Title,
+  other bla bla.
+
+\end{thebibliography}
+
+Les étapes de ce travail sont les suivantes:
+\begin{enumerate}
+\item Parfaire sa connaissance de C et Make et POSIX.
+\item Lire et comprendre cette donnée.  Cela prendra probablement une partie
+  importante du temps total.
+\item Lire, trouver, et comprendre les parties importantes du code fourni.
+\item Compléter le code fourni.
+\item Écrire un rapport.  Il doit décrire \textbf{votre} expérience pendant
+  les points précédents: problèmes rencontrés, surprises, choix que vous
+  avez dû faire, options que vous avez sciemment rejetées, etc...  Le
+  rapport ne doit pas excéder 5 pages.
+\end{enumerate}
+
+Ce travail est à faire en groupes de 2 étudiants.  Le rapport, au format
+\LaTeX\ exclusivement (compilable sur \texttt{frontal.iro}) et le code sont
+à remettre par remise électronique avant la date indiquée.  Aucun retard ne
+sera accepté.  Indiquez clairement votre nom au début de chaque fichier.
+
+Si un étudiant préfère travailler seul, libre à lui, mais l'évaluation de
+son travail n'en tiendra pas compte.  Si un étudiant ne trouve pas de
+partenaire, il doit me contacter au plus vite.  Des groupes de 3 ou plus
+sont \textbf{exclus}.
+
+\newpage
+\section{CH: un shell pour les hélvètes}
+
+Vous allez devoir implanter une ligne de commande, similaire
+à \texttt{/bin/sh}, qui sait:
+\begin{enumerate}
+\item Démarrer des processus externes: être capable d'exécuter des commandes
+  comme ``\texttt{cat Makefile}''.
+\item Expansion d'arguments: être capable d'exécuter des commandes comme
+  ``\texttt{echo *}''.
+\item Rediriger les entrées et sorties de ces processus: être capable
+  d'exécuter des commandes comme ``\texttt{cat <Makefile >foo}''.
+\item Connecter ces processus via des \emph{pipes} pour faire des
+  \emph{pipelines}: être capable d'exécuter des commandes comme
+  ``\texttt{find -name Makefile | xargs grep ch}''.
+\end{enumerate}
+
+
 
 \end{document}
