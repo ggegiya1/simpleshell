@@ -44,7 +44,7 @@
 
 struct Command {
 
-	char * command;
+	char *command;
 	int input;
 	int output;
 	int status;
@@ -62,8 +62,8 @@ char * trim(char * s) {
 int execute_command(struct Command * cmd)
 {
 	char *argv[MAX_ARGS];
-    int  argc;
     char *token;
+    int argc;
 	int	status;
 
 	pid_t pid;
@@ -162,7 +162,8 @@ struct Command * parse_command(char * command) {
 		}
 		
 		cmd->command = argv[0];
-		cmd->output  = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
+		cmd->output  = 
+			open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
 
 		if (cmd->output == -1) {
 			perror("Cannot open the file for writing");
@@ -235,16 +236,16 @@ int main (void) {
 
 			while(token != NULL) {
 				
-				struct Command * one_command = parse_command (token);
+				struct Command * _command = parse_command (token);
 
-				if (one_command == NULL || one_command->status == EXIT_FAILURE) {
+				if (_command == NULL || _command->status == EXIT_FAILURE) {
 
 					perror("Unable to parse the command");
 					status = EXIT_FAILURE;
 					break;
 				}
 
-				cmd[count++] = one_command;
+				cmd[count++] = _command;
 				token = strtok(NULL, "|");
 			}
 			
@@ -278,14 +279,14 @@ int main (void) {
 			
 			/* Execute onr command */
 
-			struct Command * one_command = parse_command(buf);
+			struct Command * _command = parse_command(buf);
 
-			if (one_command == NULL || one_command->status == EXIT_FAILURE) {
+			if (_command == NULL || _command->status == EXIT_FAILURE) {
 				perror("Unable to parse the command");
 				continue;
 			}
 
-			execute_command(one_command);
+			execute_command(_command);
 		}		
 		
 		fprintf(stdout, PROMPT);
