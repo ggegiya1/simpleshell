@@ -27,27 +27,59 @@
     #2
   \end{array}}
 
-\section{Introduction:}
+\section{Survol:}
+Ce TP vise de creé un shell, qui répresent un interpréteur des commandes destiné
+aux systèmes d'exploitation Unix. 
 
-Le terme anglais \texttt{shell} vient à l'origine de la terminologie employée 
-avec les premiers systèmes d'exploitation de type Unix où il avait le sens plus 
-spécifique de shell Unix. Cette appellation est une métaphore pour désigner la couche
-la plus haute des interfaces des systèmes Unix, par opposition à la couche de bas-niveau,
-appelée noyau. La \texttt{coque} invoque l'association de l'écran et du clavier,
-utilisées par des émulateurs de consoles (les \texttt{coquilles} en analogie 
-au chemin complexe d'une architecture client-serveur): nouvelles interfaces systèmes
-de la micro-informatique. Avec l'arrivée de la souris et des interfaces graphiques, 
-cet anglicisme a fini par être démocratisé pour désigner tous les types d'interfaces
-de sortie vidéo d'un système d'exploitation, qu'elles soient textuelles ou graphiques. 
-\cite{Widipedia}.
+Le ``\texttt{simpleshell}'', c'est l'application conçu par notre echipe, 
+va accéder aux fonctionnalités internes du système d'exploitation
+et va executer quelques programmes qui sont déjà instaler dans /usr/bin. 
 
-\begin{thebibliography}{2}
+Donc l'utilisateur lance des commandes sous forme d'une entrée texte sur 
+la ligne de commande accessible depuis le terminal et notre ``\texttt{simpleshell}''
+les va exécutée. 
 
-\bibitem{Wikidpedia}
-  Wikipedia
-\bibitem{OtherItem}
-  Other Title,
-  other bla bla.
+Le but de notre travail a été de concevoir une implantation en langage C simple, qui
+utilise les primitive du système, telles que ``\texttt{exec, fork, dup2, pipe et readdir}''.
+Le résultat a été atteint, car on a obtenu une application fiable, tolerante aux fotes et
+qui connaître plus des fonctionalités demandés.
+
+En général notre util est capable :
+\begin{enumerate}
+\item d'exécuter des commandes comme ``\texttt{cat Makefile, ls, pwd, date, man ... }'', 
+et la majorité des utils qui sont installer dans le système et que n'exige seulement de 
+les demarer.
+\item d'exécuter des commandes comme ``\texttt{echo *}''.
+\item de rediriger les entrées et sorties des processus: être capable
+d'exécuter des commandes comme ``\texttt{cat <Makefile >foo}''.
+\item connecter ces processus via des \emph{pipes} pour faire des \emph{pipelines}:
+être capable d'exécuter des commandes comme ``\texttt{find -name Makefile | xargs grep ch}''.
+\end{enumerate}  
+
+
+\newpage
+\begin{thebibliography}{5}
+
+\bibitem{1}
+  The UNIX programming environment, 
+  Brian W. Kernighan, Rob Pike,
+  1984, Bell Laboratories, New Jersey. 
+\bibitem{2}
+  Advanced Programming in the UNIX Environment, 
+  W. Richard Stevens, Stephen A. Rago,
+  Second Edition, 2008  
+\bibitem{3}
+  Linux Application Development,
+  Michael K. Johnson, Eric W. Troan.
+  1998.
+\bibitem{4}
+  GNU/Linux Application Programming, 
+  M. Tim Jones,
+  First Edition, 2005  
+\bibitem{5}
+  Latex Companion,
+  Frank Mittelbach, Michel Goossens.
+  Deusième édition, 2005.  
 
 \end{thebibliography}
 
@@ -75,7 +107,7 @@ partenaire, il doit me contacter au plus vite.  Des groupes de 3 ou plus
 sont \textbf{exclus}.
 
 \newpage
-\section{CH: un shell pour les hélvètes}
+\section{Conclusion}
 
 Vous allez devoir implanter une ligne de commande, similaire
 à \texttt{/bin/sh}, qui sait:
