@@ -1,21 +1,21 @@
 /******************************************************************************
- * SIMPLESHELL							                                      *
+ * ch.c --- Un shell pour les hélvètes.                                       *
  *                                                                            *
  ******************************************************************************
- * Executes the commands:                                                     *
- *         cat Makefile                                                       *
- *         echo *                                                             *
- *         cat <Makefile > foo                                                *
- *         find -name Makefile | xargs grep ch                                *
+ * C'est une ligne de commande, similaire a /bin/sh qui sait:                 *
+ *         1. Exécuter la commande "cat Makefile".                            *
+ *         2. Exécuter la commande "echo *".                                  *
+ *         3. Exécuter la commande "cat <Makefile > foo".                     *
+ *         4. Exécuter la commande "find -name Makefile | xargs grep ch".     *
  *                                                                            *
  ******************************************************************************
- * Authors:                                          						  *
- *         Georgiy Gegiya      < gegiya@gmail.com >                           *
+ * L'application a été réalisée par:                                          *
  *         Cordeleanu Corneliu < cordeleanu@gmail.com >                       *
+ *         Georgiy Gegiya      < gegiya@gmail.com >                           *
  *                                                                            *
  ******************************************************************************
- * Compiler: gcc version 4.8.4 (Ubuntu 4.8.4-2ubuntu1~14.04)                  *
- * IFT2245 05 - 28 January 2016                                               *
+ * Compilateur gcc version 4.8.4 (Ubuntu 4.8.4-2ubuntu1~14.04)                *
+ * IFT2245 05 - 28 Janvier 2016                                               *
  *                                                                            *
  *****************************************************************************/
 
@@ -29,127 +29,185 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <dirent.h>
 
+#define LINE_FEED		10		// Line feed
+#define CHAR_NUL		0		// Null character
 
-#define LINE_FEED		10			// Line feed
-#define CHAR_NUL		0			// Null character
+#define MAXLINE			4096	// The maximum length of a command
+#define MAXARGS			4096	// Maximal number of arguments
+#define MAXCMDS			128		// Maximal number of commands in the line
 
-#define TRUE			1
-#define FALSE   		0	
-
-#define MAXLINE			1024		// The maximum length of one command
-#define MAX_ARGS		1024	
-
+#define CURRENT_DIR		"."
 #define PROMPT 			"%%"
+
+/* Structure to handle one command */ 
 
 struct Command {
 
-	char *command;
+	char * command;
 	int input;
 	int output;
 	int status;
 };
 
+/* Trim extra spaces at the beginning and at the end of command */
+
 char * trim(char * s) {
 
     int l = strlen(s);
+
     while(isspace(s[l - 1])) --l;
     while(* s && isspace(* s)) ++s, --l;
 
     return strndup(s, l);
 }
 
-int execute_command(struct Command * cmd)
-{
-	char *argv[MAX_ARGS];
+void read_directory(char * path, char ** files) {	
+
+	DIR *dpath = NULL;
+	struct dirent *direntry = NULL;
+	
+	if ((dpath = opendir(path)) == NULL) {
+		perror("Failed to open the directory");
+	}
+
+	int i;
+	for(i=0; (direntry = readdir(dpath)) != NULL; i++) {
+		files[i] = direntry->d_name;
+	}
+
+	files[i] = NULL;
+}
+
+/* Spawn one command */
+
+int execute_command(struct Command * cmd) {
+
+	char *argv[MAXARGS];
+	char *files[MAXARGS];
     char *token;
-    int argc;
+
+    int	argc;
 	int	status;
 
-	pid_t pid;
-	
+	pid_t	pid;
+
 	/* Tokenize and put to array argv[]
-	 * argv[0] will contain the command name */
+	 * argv[0] will contain the command name 
+	 */
 
 	token = strtok(cmd->command, " ");
 	argc  = 0;
 
-	while(token != NULL) {	
+	while(token != NULL) {
 
-		argv[argc] = trim(token);
+		char *argument = trim(token);
+		
+		/* Replace the "*' by the list of the files in the current directory */
+
+		if (strcmp("*", argument) == 0) {
+
+			read_directory(CURRENT_DIR, files);
+			int i;
+
+			for(i = 0; files[i] != NULL; i++) {
+
+				argv[argc] = files[i];
+				argc++;
+
+				if (argc == MAXARGS){
+					perror("Too many files");
+					return EXIT_FAILURE;
+				}
+			}
+
+		} else {
+
+			argv[argc] = argument;
+			argc++;
+
+			if (argc == MAXARGS){
+				perror("Too many arguments");
+				return EXIT_FAILURE;
+			}
+		}
+
 		token = strtok(NULL, " ");
-		argc++;
 	}
 
+	/* NULL is the special element, end of the list */
 	argv[argc] = NULL;
 
-	/* Fork to execute the command */
+	/* Fork the porcess to execute the command */
 
 	switch (pid = fork()) {
 
 		case -1:
 			perror("Cannot fork");
 			return EXIT_FAILURE;
+			 
+		case 0:	
+			/*  This is a child code */
+	
+			/* Redirect input to read from file */
 
-		case 0:
-			/* This is a child code 
-			 * will execute command here
-			 */
-			
-			/* Redirect stdin and stdout */
-
-			if (cmd->input != STDIN_FILENO) {
+			if (cmd->input != STDIN_FILENO){
 				dup2(cmd->input, STDIN_FILENO);
 				close(cmd->input);
 			}
 			
-			if (cmd->output != STDOUT_FILENO) {
+			/* Rredirect output to file */
+
+			if (cmd->output != STDOUT_FILENO){
 				dup2(cmd->output, STDOUT_FILENO);
 				close(cmd->output);
 			}
-			
-			/* Execute the command and handle the errors */	
-	
-			if (execvp(argv[0], argv) < 0) {
+
+			/* Execute the command and handle the errors */
+
+			if (execvp(argv[0],argv)<0){
 				perror("Invalid command");
 				return EXIT_FAILURE;
 			}
 	}
-
-	/* Wait until the child process terminates */
-
+	
 	do {
+
+		/* Wait until the child process terminates */	
 		waitpid(pid, &status, WUNTRACED);
-    } 	while (!WIFEXITED(status) && !WIFSIGNALED(status));
-    
-	return status;
+
+	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+	return EXIT_SUCCESS;
 }
 
 struct Command * parse_command(char * command) {
 	
 	char * token;
-	int argc;
 	char * argv[2];
+	int argc;
+
 	struct Command * cmd;
-    
+
     if ((cmd = malloc(sizeof(struct Command))) == NULL) {
 		perror("Memory allocation error");
 		return cmd;
 	}
     
-    cmd->command = command;
-    cmd->input   = STDIN_FILENO;
-    cmd->output  = STDOUT_FILENO;
-    cmd->output  = EXIT_FAILURE;
+	cmd->command = command;
+	cmd->input = STDIN_FILENO;
+	cmd->output = STDOUT_FILENO;
+	cmd->output = EXIT_FAILURE;
     
 	if (strchr(cmd->command, '>') != NULL) {
   		
-		/* Redirect output */
-
+		/* Redirect output to file */
 		token = strtok(cmd->command, ">");
-		argc  = 0;
-			
-		while (token != NULL) {
+
+		argc  = 0;	
+	
+		while(token != NULL) {
 
 			if (argc > 1) {
 				perror("Invalid syntax");
@@ -162,8 +220,7 @@ struct Command * parse_command(char * command) {
 		}
 		
 		cmd->command = argv[0];
-		cmd->output  = 
-			open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
+		cmd->output  = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
 
 		if (cmd->output == -1) {
 			perror("Cannot open the file for writing");
@@ -172,19 +229,19 @@ struct Command * parse_command(char * command) {
 	}
 						
 	if (strchr(cmd->command, '<') != NULL) {
-
-  		/* Redirect input */
-
+  		
+		/* Read the input from file */ 
 		token = strtok(cmd->command, "<");
-		argc  = 0;
-			
-		while (token != NULL) {
 
-			if (argc > 1){
+		argc = 0;
+			
+		while(token != NULL) {
+
+			if (argc > 1) {
 				perror("Invalid syntax");
 				return cmd;
-			}
-	
+			}	
+
 			argv[argc] = trim(token);
 			token = strtok(NULL, "<");
 			argc++;
@@ -207,39 +264,43 @@ int main (void) {
 
 	char	buf[MAXLINE];
 	ssize_t ret;
-	struct  Command * cmd[128];
-	int		count;
+	struct  Command * cmd[MAXCMDS];
+	int     count;
 	
-	int		_pipe[2];
-	int		input;
-	int 	status;
+	int _pipe[2];
+	int input;
+	int status;
 	
 	fprintf(stdout, PROMPT);
 	fflush(stdout);
-
   	/* Read commands from standard input */
-
 	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
+	
+		status = EXIT_SUCCESS;
 		
 		status  = EXIT_SUCCESS;
 		
-		/* Terminate the string by 0 */
+		/* Terminate the string by 0*/
 
 		if (buf[ret - 1] == LINE_FEED)
 			buf[ret - 1] = CHAR_NUL;
 
-		if (strchr(buf, '|') != NULL) {
+		/* Allow using pipes */
+
+		if (strchr(buf, '|') != NULL){
+
+			/* Parse commamnds and store in cmd[] array */
 
 			char * token = strtok(buf, "|");
 			input = STDIN_FILENO;
 			count = 0;
 
 			while(token != NULL) {
-				
+
 				struct Command * _command = parse_command (token);
-
+				
 				if (_command == NULL || _command->status == EXIT_FAILURE) {
-
+					
 					perror("Unable to parse the command");
 					status = EXIT_FAILURE;
 					break;
@@ -247,52 +308,71 @@ int main (void) {
 
 				cmd[count++] = _command;
 				token = strtok(NULL, "|");
+
+				if (count == MAXCMDS) {
+					perror("Too many commands");
+					status = EXIT_FAILURE;
+					break;
+				}
 			}
 			
-			if (status == EXIT_SUCCESS) {
+			/* Execute commands in chain if the command line was successfully parsed */
 
+			if (status == EXIT_SUCCESS) {
+				
 				int i;
 
-				for (i = 0; i < count-1; i++) {
+				/* Execute commands secuentially */
 
-					fprintf (stderr, "executing: %s\n", cmd[i]->command);
-			
+				for (i=0; i < count - 1; i++){
+					
+					/* Create pipe */
 					pipe(_pipe);
+					
+					/* Connect input and output to the pipe */ 
 
 					cmd[i]->input  = input;
 					cmd[i]->output = _pipe[1];
-
-					fprintf (stderr, "input: %d\n", cmd[i]->input);
-					fprintf (stderr, "output: %d\n", cmd[i]->output);
-
+					
 					execute_command (cmd[i]);
-				
+
+					/* Close output , but keep input for the next command */
+
 					close(_pipe[1]);
 					input = _pipe[0];
+					free(cmd[i]);
 				}
+
+				/* Last command reads from pipe but writes to STDOUT */
 
 				cmd[i]->input = input;
 				execute_command (cmd[i]);
+				close(_pipe[0]);
+				free(cmd[i]);
 			}
 
 		}else{
-			
-			/* Execute onr command */
 
+			/* Execute one command */
 			struct Command * _command = parse_command(buf);
 
-			if (_command == NULL || _command->status == EXIT_FAILURE) {
+			if (_command == NULL || _command->status == EXIT_FAILURE){
 				perror("Unable to parse the command");
 				continue;
 			}
 
 			execute_command(_command);
-		}		
+			free(_command);
+		}
+		
 		
 		fprintf(stdout, PROMPT);
-		fflush(stdout);			
+		fflush(stdout);
+			
 	}	
 
+	fflush(stdout);
   	fprintf (stdout, "Bye!\n");
+
   	return 0;
 }

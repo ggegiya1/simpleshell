@@ -30,23 +30,20 @@
 \section{Survol:}
 Ce TP vise de creé un shell, qui répresent un interpréteur des commandes destiné
 aux systèmes d'exploitation Unix. 
-
+\\\\
 Le ``\texttt{simpleshell}'', c'est l'application conçu par notre echipe, 
 va accéder aux fonctionnalités internes du système d'exploitation
 et va executer quelques programmes qui sont déjà instaler dans /usr/bin. 
-
-Donc l'utilisateur lance des commandes sous forme d'une entrée texte sur 
-la ligne de commande accessible depuis le terminal et notre ``\texttt{simpleshell}''
-les va exécutée. 
-
+\\\\
 Le but de notre travail a été de concevoir une implantation en langage C simple, qui
 utilise les primitive du système, telles que ``\texttt{exec, fork, dup2, pipe et readdir}''.
+\\\\
 Le résultat a été atteint, car on a obtenu une application fiable, tolerante aux fotes et
 qui connaître plus des fonctionalités demandés.
-
+\\\\
 En général notre util est capable :
 \begin{enumerate}
-\item d'exécuter des commandes comme ``\texttt{cat Makefile, ls, pwd, date, man ... }'', 
+\item d'exécuter des commandes comme ``\texttt{cat Makefile, ls, pwd, date, ...}'' 
 et la majorité des utils qui sont installer dans le système et que n'exige seulement de 
 les demarer.
 \item d'exécuter des commandes comme ``\texttt{echo *}''.
@@ -56,6 +53,52 @@ d'exécuter des commandes comme ``\texttt{cat <Makefile >foo}''.
 être capable d'exécuter des commandes comme ``\texttt{find -name Makefile | xargs grep ch}''.
 \end{enumerate}  
 
+\newpage
+\section{Implementation}
+Les étapes qu'on a choisi pour implanter le shell sont suivantes:
+\begin{enumerate}
+\item Donc l'utilisateur lance des commandes sous forme d'une entrée texte sur 
+la ligne de commande accessible depuis le terminal et notre ``\texttt{simpleshell}''
+les exécutes.
+\item A l'aide d'une fonction parseur ``\texttt{parse command}'' et une fonction
+``\texttt{trim}'' on analyse la ligne de commande et on crée des commandes dans les
+structures de 4 champs: ``\texttt{command, input, output et status}''.
+\item Ensuite tous les commandes sont stoker dans un tableu. En fait la création des
+commandes c'étais le plus gros travail dans cet dovoir, car tout le reste c'étais 
+la compréhension des proccesus et de la création des pipelines.
+\item Aprés le stokage, les commandes s'execute une par une. Au debut on va faire un appel
+a une primitive ``\texttt{fork}'', pour crée dans le système un nouveu processus. 
+Et ensuite on va executer avec une autre primitive ``\texttt{execvp}''.
+\item Aprés le stokage, les commandes s'execute une par une. Au debut on va faire un appel
+a une primitive ``\texttt{fork}'', pour crée dans le système un nouveu processus. 
+Et ensuite on va les executer à l'aide d'une autre primitive ``\texttt{execvp}''.
+\item Pour rediriger les entrées et les sorties entres programmes on utilise la primitive
+du système ``\texttt{dup2}'', mais avant d'utiliser la fonction ``\texttt{execvp}''.
+\item Ensuite pour être sur que le proccesus enfant termine sa execution on s'en serve de
+deux marcros ``\texttt{WIFEXITED et WIFSIGNALED}'', crée par la librarie GNU.
+\end{enumerate}
+
+
+\newpage
+\section{Conclusion}
+\begin{enumerate}
+\item La prémiere conlusion qu'on voudra de dire est l'utilisation parfaite de langage C, 
+pour crée des application de type CMD. 
+\\\\Le fait que le kernel et écrite en C on a la posibilité d'utiliser directement beaucoup 
+des primitives du système et cela nous permète de gérérer d'un façon plus efficace des resources,
+comme par exemples la mémoire et l'execution plus rapides des applications.
+\item En faisant ce TP on a compri meilleux le fonctionnement des processus. En fait on a 
+remarquer le fait que l'appel de primitive ``\texttt{fork}'' va résulter de foix l'affichage
+des variables du evironnement. Cela veut dire que utilisation de cette primitive est déconseiller,
+car elle double la mémoire. 
+\\\\
+En fait les systèmes modernes utilise des nouvelle techniques, comme par exemple 
+``\texttt{copy-on-write}'', dont leur efficatiée est plus élever, car cex types utilises 
+le partage des données en mémoire pour les deux types des processus: parent et enfant.
+Voir ``\texttt{[2] Section 8.3}''.
+\item ...
+
+\end{enumerate}
 
 \newpage
 \begin{thebibliography}{5}
@@ -82,47 +125,5 @@ d'exécuter des commandes comme ``\texttt{cat <Makefile >foo}''.
   Deusième édition, 2005.  
 
 \end{thebibliography}
-
-Les étapes de ce travail sont les suivantes:
-\begin{enumerate}
-\item Parfaire sa connaissance de C et Make et POSIX.
-\item Lire et comprendre cette donnée.  Cela prendra probablement une partie
-  importante du temps total.
-\item Lire, trouver, et comprendre les parties importantes du code fourni.
-\item Compléter le code fourni.
-\item Écrire un rapport.  Il doit décrire \textbf{votre} expérience pendant
-  les points précédents: problèmes rencontrés, surprises, choix que vous
-  avez dû faire, options que vous avez sciemment rejetées, etc...  Le
-  rapport ne doit pas excéder 5 pages.
-\end{enumerate}
-
-Ce travail est à faire en groupes de 2 étudiants.  Le rapport, au format
-\LaTeX\ exclusivement (compilable sur \texttt{frontal.iro}) et le code sont
-à remettre par remise électronique avant la date indiquée.  Aucun retard ne
-sera accepté.  Indiquez clairement votre nom au début de chaque fichier.
-
-Si un étudiant préfère travailler seul, libre à lui, mais l'évaluation de
-son travail n'en tiendra pas compte.  Si un étudiant ne trouve pas de
-partenaire, il doit me contacter au plus vite.  Des groupes de 3 ou plus
-sont \textbf{exclus}.
-
-\newpage
-\section{Conclusion}
-
-Vous allez devoir implanter une ligne de commande, similaire
-à \texttt{/bin/sh}, qui sait:
-\begin{enumerate}
-\item Démarrer des processus externes: être capable d'exécuter des commandes
-  comme ``\texttt{cat Makefile}''.
-\item Expansion d'arguments: être capable d'exécuter des commandes comme
-  ``\texttt{echo *}''.
-\item Rediriger les entrées et sorties de ces processus: être capable
-  d'exécuter des commandes comme ``\texttt{cat <Makefile >foo}''.
-\item Connecter ces processus via des \emph{pipes} pour faire des
-  \emph{pipelines}: être capable d'exécuter des commandes comme
-  ``\texttt{find -name Makefile | xargs grep ch}''.
-\end{enumerate}
-
-
 
 \end{document}
