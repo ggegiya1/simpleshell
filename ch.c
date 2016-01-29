@@ -220,8 +220,7 @@ struct Command * parse_command(char * command) {
 		}
 		
 		cmd->command = argv[0];
-		cmd->output  = 
-			open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
+		cmd->output  = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,  S_IRUSR | S_IWUSR);
 
 		if (cmd->output == -1) {
 			perror("Cannot open the file for writing");
@@ -274,10 +273,10 @@ int main (void) {
 	
 	fprintf(stdout, PROMPT);
 	fflush(stdout);
-
   	/* Read commands from standard input */
-
 	while ((ret = read(STDIN_FILENO, buf, MAXLINE)) > 0) {
+	
+		status = EXIT_SUCCESS;
 		
 		status  = EXIT_SUCCESS;
 		
@@ -365,6 +364,7 @@ int main (void) {
 			execute_command(_command);
 			free(_command);
 		}
+		
 		
 		fprintf(stdout, PROMPT);
 		fflush(stdout);
